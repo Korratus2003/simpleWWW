@@ -1,12 +1,22 @@
 import os
 import socket
 import threading
+import json
 
 HOST = '0.0.0.0'  # Nasłuchiwanie na wszystkich interfejsach
 PORT = 8080  # Wybrany port
 BASE_DIR = './static'  # Katalog z zasobami statycznymi
+CONFIG_FILE = 'config.json'  # Plik konfiguracyjny
 threads = []  # Lista do śledzenia wątków
 
+# Ładowanie konfiguracji
+def load_config():
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, 'r') as f:
+            return json.load(f)
+    return {}
+
+config = load_config()
 
 def handle_client(client_socket):
     try:
@@ -25,9 +35,14 @@ def handle_client(client_socket):
                 send_response(client_socket, 405, 'Method Not Allowed')
                 return
 
+            # Sprawdzanie konfiguracji
+            if path in config:
+                path = config[path]
+
             # Oczyszczanie ścieżki
             sanitized_path = os.path.normpath(path).lstrip('/')
             file_path = os.path.join(BASE_DIR, sanitized_path)
+            print(f"ścieżka do pliku który rząda klient {file_path}")
 
             if not os.path.exists(file_path) or not os.path.isfile(file_path):
                 send_response(client_socket, 404, 'Not Found')

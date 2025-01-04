@@ -74,6 +74,10 @@ def send_response(client_socket, status_code, status_message, body=None, content
 def get_content_type(file_path):
     if file_path.endswith('.html'):
         return 'text/html'
+    elif file_path.endswith('.css'):
+        return 'text/css'
+    elif file_path.endswith('.js'):
+        return 'application/javascript'
     elif file_path.endswith('.txt'):
         return 'text/plain'
     else:

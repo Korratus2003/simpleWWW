@@ -4,7 +4,6 @@ import threading
 import json
 
 HOST = '0.0.0.0'  # Nasłuchiwanie na wszystkich interfejsach
-PORT = 8080  # Wybrany port
 BASE_DIR = './static'  # Katalog z zasobami statycznymi
 CONFIG_FILE = 'config.json'  # Plik konfiguracyjny
 threads = []  # Lista do śledzenia wątków
@@ -17,6 +16,7 @@ def load_config():
     return {}
 
 config = load_config()
+PORT = config.get("port", 8080)  # Ustawienie domyślnego portu
 
 def handle_client(client_socket):
     try:
@@ -40,18 +40,17 @@ def handle_client(client_socket):
                 path = config[path]
 
             # Oczyszczanie ścieżki
-            sanitized_path = os.path.normpath(path).lstrip('/')
-            file_path = os.path.join(BASE_DIR, sanitized_path)
-            print(f"ścieżka do pliku który rząda klient {file_path}")
+            sanitized_path = os.path.abspath(os.path.join(BASE_DIR, path.lstrip('/')))
+            print(f"Ścieżka do pliku żądanego przez klienta: {sanitized_path}")
 
-            if not os.path.exists(file_path) or not os.path.isfile(file_path):
+            if not os.path.exists(sanitized_path) or not os.path.isfile(sanitized_path):
                 send_response(client_socket, 404, 'Not Found')
                 return
 
             # Wysyłanie zawartości pliku
-            with open(file_path, 'rb') as file:
+            with open(sanitized_path, 'rb') as file:
                 content = file.read()
-            send_response(client_socket, 200, 'OK', content, get_content_type(file_path))
+            send_response(client_socket, 200, 'OK', content, get_content_type(sanitized_path))
     except Exception as e:
         print(f"Błąd: {e}")
         send_response(client_socket, 500, 'Internal Server Error')

@@ -1,4 +1,12 @@
 {
-  "port": 8080,
-  "/": "index.html"
+  "servers": [
+    {
+      "port": 8080,
+      "base_dir": "./static/stronaTestowa"
+    },
+    {
+      "port": 8090,
+      "base_dir": "./static/strona2"
+    }
+  ]
 }

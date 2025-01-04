@@ -2,11 +2,13 @@ import os
 import socket
 import threading
 import json
+import logging
 
 HOST = '0.0.0.0'  # Nasłuchiwanie na wszystkich interfejsach
-BASE_DIR = './static'  # Katalog z zasobami statycznymi
 CONFIG_FILE = 'config.json'  # Plik konfiguracyjny
 threads = []  # Lista do śledzenia wątków
+
+logging.basicConfig(level=logging.INFO)
 
 # Ładowanie konfiguracji
 def load_config():
@@ -16,14 +18,12 @@ def load_config():
     return {}
 
 config = load_config()
-PORT = config.get("port", 8080)  # Ustawienie domyślnego portu
 
-def handle_client(client_socket):
+def handle_client(client_socket, base_dir):
     try:
-        request = client_socket.recv(1024).decode('utf-8')
-        print("----------------------------------------------------------------------------------------")
-        print(request)
-        print("----------------------------------------------------------------------------------------")
+        request = client_socket.recv(4096).decode('utf-8')
+        logging.info("Received request:")
+        logging.info(request)
 
         # Analiza pierwszej linii żądania HTTP
         lines = request.splitlines()
@@ -31,31 +31,33 @@ def handle_client(client_socket):
             request_line = lines[0]
             method, path, _ = request_line.split()
 
-            if method != 'GET':
+            if method not in ['GET', 'HEAD']:
                 send_response(client_socket, 405, 'Method Not Allowed')
                 return
 
-            # Sprawdzanie konfiguracji
-            if path in config:
-                path = config[path]
-
             # Oczyszczanie ścieżki
-            sanitized_path = os.path.abspath(os.path.join(BASE_DIR, path.lstrip('/')))
-            print(f"Ścieżka do pliku żądanego przez klienta: {sanitized_path}")
+            sanitized_path = os.path.abspath(os.path.join(base_dir, path.lstrip('/')))
+            if os.path.isdir(sanitized_path):
+                sanitized_path = os.path.join(sanitized_path, 'index.html')
+            logging.info(f"Ścieżka do pliku żądanego przez klienta: {sanitized_path}")
 
             if not os.path.exists(sanitized_path) or not os.path.isfile(sanitized_path):
                 send_response(client_socket, 404, 'Not Found')
                 return
 
             # Wysyłanie zawartości pliku
+            if method == 'HEAD':
+                send_response(client_socket, 200, 'OK', content=None, content_type=get_content_type(sanitized_path))
+                return
+
             with open(sanitized_path, 'rb') as file:
                 content = file.read()
             send_response(client_socket, 200, 'OK', content, get_content_type(sanitized_path))
     except Exception as e:
-        print(f"Błąd: {e}")
+        logging.error(f"Błąd: {e}")
         send_response(client_socket, 500, 'Internal Server Error')
     finally:
-        print("Rozłączono z klientem")
+        logging.info("Rozłączono z klientem")
         client_socket.close()
 
 
@@ -80,33 +82,45 @@ def get_content_type(file_path):
         return 'application/javascript'
     elif file_path.endswith('.txt'):
         return 'text/plain'
+    elif file_path.endswith('.png'):
+        return 'image/png'
+    elif file_path.endswith('.jpg') or file_path.endswith('.jpeg'):
+        return 'image/jpeg'
+    elif file_path.endswith('.gif'):
+        return 'image/gif'
     else:
         return 'application/octet-stream'
 
 
-def start_server():
-    if not os.path.exists(BASE_DIR):
-        os.makedirs(BASE_DIR)
+def start_server(port, base_dir):
+    if not os.path.exists(base_dir):
+        os.makedirs(base_dir)
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server_socket.bind((HOST, PORT))
+    server_socket.bind((HOST, port))
     server_socket.listen(5)
-    print(f"Serwer nasłuchuje na {HOST}:{PORT}")
+    logging.info(f"Serwer nasłuchuje na {HOST}:{port}")
 
     try:
         while True:
             client_socket, client_address = server_socket.accept()
-            print(f">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Połączono z {client_address}")
-            client_thread = threading.Thread(target=handle_client, args=(client_socket,))
+            logging.info(f"Połączono z {client_address}")
+            client_thread = threading.Thread(target=handle_client, args=(client_socket, base_dir))
             client_thread.start()
             threads.append(client_thread)  # Dodanie wątku do listy
     except KeyboardInterrupt:
-        print("Zatrzymywanie serwera...")
+        logging.info("Zatrzymywanie serwera...")
     finally:
         for thread in threads:
             thread.join()  # Oczekiwanie na zakończenie wątku
         server_socket.close()
 
 if __name__ == '__main__':
-    start_server()
+    servers = config.get("servers", [])
+    for server in servers:
+        port = server.get("port", 8080)
+        base_dir = server.get("base_dir", './static')
+        server_thread = threading.Thread(target=start_server, args=(port, base_dir))
+        server_thread.start()
+        threads.append(server_thread)

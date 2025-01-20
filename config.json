@@ -2,11 +2,13 @@
   "servers": [
     {
       "port": 8080,
-      "base_dir": "./static/stronaTestowa"
+      "base_dir": "./static/stronaTestowa",
+      "allowed_extensions": [".html", ".css", ".js", ".jpg", ".png", ".gif"]
     },
     {
       "port": 8090,
-      "base_dir": "./static/strona2"
+      "base_dir": "./static/strona2",
+      "allowed_extensions": [".html",".jpg"]
     }
   ]
 }

@@ -19,3 +19,10 @@ Obsługa metod HEAD: Serwer obsługuje metodę HEAD, umożliwiając uzyskanie na
 Zabezpieczenia: Serwer zawiera podstawowe zabezpieczenia przed atakami typu Directory Traversal.
 
 Wielkość bufora: Rozmiar bufora do odbierania danych wynosi 4096 bajtów, co pozwala na obsługę większych plików.
+
+
+
+
+Aby odpalić program należy wejść do katalogu simpleWWW i w konsoli wpisać
+"python main.py" w Windowsie
+"pythhon3 main.py" na Linuksie (ja sprawdzałem na Debianie)

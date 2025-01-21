@@ -41,10 +41,12 @@ def handle_client(client_socket, base_dir, allowed_extensions):
                 sanitized_path = os.path.join(sanitized_path, 'index.html')
             logging.info(f"Ścieżka do pliku żądanego przez klienta: {sanitized_path}")
 
+            # Sprawdzenie rozszerzenia pliku
             if not is_allowed_extension(sanitized_path, allowed_extensions):
                 send_error_page(client_socket, base_dir, 403)
                 return
 
+            # Sprawdzenie istnienia pliku
             if not os.path.exists(sanitized_path) or not os.path.isfile(sanitized_path):
                 send_error_page(client_socket, base_dir, 404)
                 return
@@ -83,7 +85,9 @@ def send_error_page(client_socket, base_dir, status_code):
             body = file.read()
         send_response(client_socket, status_code, get_status_message(status_code), body, 'text/html')
     else:
-        send_response(client_socket, status_code, get_status_message(status_code), content_type='text/plain')
+        # Domyślny komunikat błędu, jeśli brak pliku HTML
+        body = f"<html><body><h1>{status_code} {get_status_message(status_code)}</h1></body></html>".encode('utf-8')
+        send_response(client_socket, status_code, get_status_message(status_code), body, 'text/html')
 
 def get_status_message(status_code):
     status_messages = {
@@ -95,6 +99,8 @@ def get_status_message(status_code):
     return status_messages.get(status_code, 'Unknown Status')
 
 def is_allowed_extension(file_path, allowed_extensions):
+    if not allowed_extensions:
+        return False  # Brak dopuszczalnych rozszerzeń
     return any(file_path.endswith(ext) for ext in allowed_extensions)
 
 def get_content_type(file_path):
